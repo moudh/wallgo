@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Wall Go — Ultimate Edition (AR/EN)</title>
+<style>
+  :root{
+    --bg:#0f172a; --card:#111827; --muted:#94a3b8; --grid:#1f2937;
+    --blue:#3b82f6; --red:#ef4444; --accent:#22c55e; --wall:#eab308; --focus:#22c55e55;
+    --hint:#22c55e33; --illegal:#111827;
+  }
+  html,body{margin:0;background:var(--bg);color:#e5e7eb;font-family:system-ui,-apple-system,Segoe UI,Roboto,"Noto Naskh Arabic","Noto Sans Arabic",Tahoma,Arial,sans-serif}
+  .wrap{max-width:1250px;margin:24px auto;padding:16px}
+  header h1{margin:0 0 8px;font-size:clamp(22px,3.2vw,30px)}
+  header p{margin:0 0 14px;color:var(--muted)}
+  .toolbar{display:grid;grid-template-columns:1fr auto;gap:12px;margin:14px 0}
+  .controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .panel{background:var(--card);border:1px solid #273244;border-radius:12px;padding:12px}
+  button{background:#0ea5e9;border:none;color:#fff;border-radius:10px;padding:10px 14px;cursor:pointer;font-weight:600}
+  button.secondary{background:#334155}
+  button.warn{background:#f59e0b;color:#0b1020}
+  button.ghost{background:transparent;border:1px dashed #334155}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  input,select{background:#0b1020;border:1px solid #233045;color:#fff;border-radius:8px;padding:8px 10px}
+  .badge{padding:6px 10px;border-radius:999px;font-size:13px;background:#0b1020;border:1px solid #233045}
+  .badge.blue{border-color:#264a9b;color:#dbeafe}
+  .badge.red{border-color:#7a1d1d;color:#fee2e2}
+  .toolbar .status{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .layout{display:grid;grid-template-columns:1fr 340px;gap:16px}
+  @media(max-width:1060px){.layout{grid-template-columns:1fr}}
+  .board{background:var(--card);border:1px solid #273244;border-radius:12px;padding:10px;
+         display:grid;grid-template-columns:repeat(7,1fr);gap:6px;user-select:none;touch-action:manipulation}
+  .cell{position:relative;background:#0b1020;border:1px solid var(--grid);aspect-ratio:1;border-radius:8px;
+        display:grid;place-items:center;color:#94a3b8;transition:transform .08s}
+  .cell:hover{transform:translateY(-2px)}
+  .cell .dot{width:68%;height:68%;border-radius:50%;display:none}
+  .cell.blue .dot{display:block;background:linear-gradient(145deg,var(--blue),#1d4ed8);box-shadow:0 0 0 2px #1e3a8a inset}
+  .cell.red .dot{display:block;background:linear-gradient(145deg,var(--red),#b91c1c);box-shadow:0 0 0 2px #7f1d1d inset}
+  .sel{outline:3px solid var(--focus);outline-offset:-3px}
+  .hint{position:absolute;inset:5px;border:2px dashed var(--hint);border-radius:6px;pointer-events:none}
+  .illegal{filter:brightness(.8)}
+  .wall-top{box-shadow:0 -4px 0 0 var(--wall) inset}
+  .wall-bottom{box-shadow:0 4px 0 0 var(--wall) inset}
+  .wall-left{box-shadow:-4px 0 0 0 var(--wall) inset}
+  .wall-right{box-shadow:4px 0 0 0 var(--wall) inset}
+  .sidebar{display:grid;gap:12px}
+  .score{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .score .card{background:#0b1020;border:1px solid #233045;border-radius:10px;padding:10px}
+  .score h3{margin:0 0 6px;font-size:14px;color:#cbd5e1}
+  .score .big{font-size:24px;font-weight:800}
+  .legend{display:flex;gap:10px;flex-wrap:wrap}
+  .chip{display:flex;gap:8px;align-items:center;background:#0b1020;border:1px solid #233045;border-radius:999px;padding:6px 10px}
+  .chip i{width:14px;height:14px;border-radius:50%}
+  .chip .b{background:var(--blue)} .chip .r{background:var(--red)}
+  .chip .w{width:18px;height:6px;border-radius:3px;background:var(--wall)}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .field{display:flex;flex-direction:column;gap:6px;min-width:140px}
+  .field label{font-size:12px;color:#cbd5e1}
+  .timer{font-weight:800}
+  .log{max-height:240px;overflow:auto;background:#0b1020;border:1px solid #233045;border-radius:10px;padding:8px;font-size:13px;line-height:1.6}
+  .log .it{opacity:.9}
+  .log .sys{color:#a3e635}
+  .log .b{color:#93c5fd} .log .r{color:#fecaca}
+  .footer{margin-top:8px;color:#9aa7b5;font-size:12px}
+  .lang-btn{background:#22c55e;border:none;padding:8px 12px;border-radius:8px;font-weight:700;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1 id="t_title">Wall Go — النسخة النهائية</h1>
+    <p id="t_sub">لوح 7×7، 4 قطع لكل لاعب، حركة 1–2 مربعات ثم وضع جدار ملاصق. تُحتسب النقاط حسب مناطقك المعزولة.</p>
+  </header>
+
+  <div class="toolbar panel">
+    <div class="controls">
+      <button id="btnNew">🔁 <span id="t_new">لعبة جديدة</span></button>
+      <button id="btnUndo" class="secondary">↩︎ <span id="t_undo">تراجع</span></button>
+      <button id="btnEnd" class="warn">🏁 <span id="t_end">إنهاء وحساب النتيجة</span></button>
+      <button id="btnSave" class="secondary">💾 <span id="t_save">حفظ</span></button>
+      <button id="btnLoad" class="secondary">⤵︎ <span id="t_load">تحميل</span></button>
+      <label class="badge"><input id="rtlToggle" type="checkbox" /> <span id="t_rtl">واجهة RTL</span></label>
+      <span class="badge"><span id="t_timer_label">المؤقّت:</span> <span id="timer" class="timer">90</span> <span id="t_sec">ثانية</span></span>
+    </div>
+    <div class="status">
+      <span id="phaseBadge" class="badge">وضع الإعداد</span>
+      <span id="turnBadge" class="badge blue">دور الأزرق</span>
+      <span id="info" class="badge">أضِف قطعة بالنقر على أي مربع فارغ</span>
+    </div>
+  </div>
+
+  <div class="panel" id="roomPanel">
+    <div class="row">
+      <div class="field">
+        <label id="t_mode_label">وضع اللعب</label>
+        <select id="mode">
+          <option value="pvp" id="t_mode_pvp">لاعبان على نفس الجهاز</option>
+          <option value="ai" id="t_mode_ai">ضد الكمبيوتر (الأحمر)</option>
+          <option value="online" id="t_mode_online">أونلاين</option>
+        </select>
+      </div>
+      <div id="onlineFields" class="row" style="display:none">
+        <div class="field">
+          <label id="t_name_label">اسمك</label>
+          <input id="playerName" type="text" placeholder="Mahmoud" />
+        </div>
+        <div class="field">
+          <label>WebSocket</label>
+          <input id="wsUrl" type="text" placeholder="wss://yourapp.onrender.com" />
+        </div>
+        <div class="field">
+          <label>Room ID</label>
+          <input id="roomId" type="text" placeholder="room-123" />
+        </div>
+        <div class="field">
+          <label id="t_role_label">الدور</label>
+          <select id="roomRole">
+            <option value="auto" id="t_role_auto">تلقائي</option>
+            <option value="blue" id="t_role_blue">أزرق</option>
+            <option value="red" id="t_role_red">أحمر</option>
+          </select>
+        </div>
+        <button id="btnConnect" class="secondary" style="min-width:110px"><span id="t_connect">اتصال</span></button>
+        <button id="btnLeave" class="ghost" disabled><span id="t_leave">مغادرة</span></button>
+        <span id="roomStatus" class="badge">غير متصل</span>
+      </div>
+
+      <button id="btnLang" class="lang-btn" style="margin-inline-start:auto">EN</button>
+    </div>
+  </div>
+
+  <div class="layout">
+    <div id="board" class="board" aria-label="لوح 7×7"></div>
+
+    <aside class="sidebar">
+      <div class="panel">
+        <div class="score">
+          <div class="card"><h3 id="t_blue_score">نقاط الأزرق</h3><div id="blueScore" class="big">0</div></div>
+          <div class="card"><h3 id="t_red_score">نقاط الأحمر</h3><div id="redScore" class="big">0</div></div>
+        </div>
+        <div class="legend" style="margin-top:8px">
+          <span class="chip"><i class="b"></i> <span id="t_legend_blue">لاعب أزرق</span></span>
+          <span class="chip"><i class="r"></i> <span id="t_legend_red">لاعب أحمر</span></span>
+          <span class="chip"><span class="w"></span> <span id="t_legend_wall">جدار</span></span>
+        </div>
+      </div>
+
+      <div class="panel hintbar" id="hintBar">
+        <span id="t_hint">تلميح: بعد حركة بمربع واحد، يُسمح بالرجوع لمكان البداية ضمن نفس الدور (يُحسب حركتين).</span>
+      </div>
+
+      <details class="panel" open>
+        <summary id="t_how_title">كيف تلعب؟ (مختصر)</summary>
+        <ol id="how_list">
+          <li>مرحلة الإعداد: بالتناوب يضع كل لاعب 4 قطع على أي مربعات فارغة.</li>
+          <li>في دورك: حرّك قطعة 1 أو 2 مربعات (مستقيم أو L-Shape، أو ذهاب-عودة) دون عبور جدار أو الوقوف على قطعة.</li>
+          <li>بعد الحركة ضع جدارًا ملاصقًا للمربع النهائي (أعلى/أسفل/يمين/يسار).</li>
+          <li>المنطقة: اتصال مربعات بدون عبور جدران. تُحتسب نقاطك بمربعات المناطق التي تحتوي فقط قطعك.</li>
+          <li>يمكنك تخطي الدور فقط إذا كانت جميع قطعك معزولة.</li>
+          <li>ينتهي اللعب بامتلاء الجدران تقريبًا/تعاقب التخطي، أو بالضغط على “إنهاء”. الفائز: أعلى مجموع نقاط.</li>
+        </ol>
+      </details>
+
+      <div class="panel">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <strong id="t_log_title">سجلّ التحركات</strong>
+          <button id="btnClearLog" class="ghost" title="مسح السجل">🧹</button>
+        </div>
+        <div id="log" class="log" dir="ltr" aria-live="polite"></div>
+      </div>
+
+      <div class="footer" id="t_footer">
+        نصيحة: اسمح للصوتيات عبر أي نقرة بالصفحة. يمكنك كتم الصوت من إعدادات المتصفح.
+      </div>
+    </aside>
+  </div>
+</div>
+
+<!-- أصوات (WAV لعملها على كل المتصفحات الحديثة) -->
+<audio id="sndMove" preload="auto" src="assets/move.wav"></audio>
+<audio id="sndWall" preload="auto" src="assets/wall.wav"></audio>
+<audio id="sndWin"  preload="auto" src="assets/win.wav"></audio>
+
+<script>
+(() => {
+  /* ========= I18N ========= */
+  const STR = {
+    ar: {
+      title: "Wall Go — النسخة النهائية",
+      sub: "لوح 7×7، 4 قطع لكل لاعب، حركة 1–2 مربعات ثم وضع جدار ملاصق. تُحتسب النقاط حسب مناطقك المعزولة.",
+      new: "لعبة جديدة",
+      undo: "تراجع",
+      end: "إنهاء وحساب النتيجة",
+      save: "حفظ",
+      load: "تحميل",
+      rtl: "واجهة RTL",
+      timer_label: "المؤقّت:",
+      sec: "ثانية",
+      phase_setup: "وضع الإعداد",
+      turn_blue: "دور الأزرق",
+      turn_red: "دور الأحمر",
+      info_setup: "أضِف قطعة بالنقر على أي مربع فارغ",
+      mode_label: "وضع اللعب",
+      mode_pvp: "لاعبان على نفس الجهاز",
+      mode_ai: "ضد الكمبيوتر (الأحمر)",
+      mode_online: "أونلاين",
+      name_label: "اسمك",
+      role_label: "الدور",
+      role_auto: "تلقائي",
+      role_blue: "أزرق",
+      role_red: "أحمر",
+      connect: "اتصال",
+      leave: "مغادرة",
+      not_connected: "غير متصل",
+      blue_score: "نقاط الأزرق",
+      red_score: "نقاط الأحمر",
+      legend_blue: "لاعب أزرق",
+      legend_red: "لاعب أحمر",
+      legend_wall: "جدار",
+      hint: "تلميح: بعد حركة بمربع واحد، يُسمح بالرجوع لمكان البداية ضمن نفس الدور (يُحسب حركتين).",
+      how_title: "كيف تلعب؟ (مختصر)",
+      how_list: [
+        "مرحلة الإعداد: بالتناوب يضع كل لاعب 4 قطع على أي مربعات فارغة.",
+        "في دورك: حرّك قطعة 1 أو 2 مربعات (مستقيم أو L-Shape، أو ذهاب-عودة) دون عبور جدار أو الوقوف على قطعة.",
+        "بعد الحركة ضع جدارًا ملاصقًا للمربع النهائي (أعلى/أسفل/يمين/يسار).",
+        "المنطقة: اتصال مربعات بدون عبور جدران. تُحتسب نقاطك بمربعات المناطق التي تحتوي فقط قطعك.",
+        "يمكنك تخطي الدور فقط إذا كانت جميع قطعك معزولة.",
+        "ينتهي اللعب بامتلاء الجدران تقريبًا/تعاقب التخطي، أو بالضغط على “إنهاء”. الفائز: أعلى مجموع نقاط."
+      ],
+      log_title: "سجلّ التحركات",
+      footer: "نصيحة: اسمح للصوتيات عبر أي نقرة بالصفحة. يمكنك كتم الصوت من إعدادات المتصفح.",
+      blue: "الأزرق", red: "الأحمر",
+      top: "أعلى", bottom: "أسفل", left: "يسار", right: "يمين",
+      time_expired: "انتهى الوقت"
+    },
+    en: {
+      title: "Wall Go — Ultimate Edition",
+      sub: "7×7 board, 4 pieces per player. Move 1–2 squares then place an adjacent wall. Score from isolated regions you exclusively control.",
+      new: "New Game",
+      undo: "Undo",
+      end: "End & Score",
+      save: "Save",
+      load: "Load",
+      rtl: "RTL UI",
+      timer_label: "Timer:",
+      sec: "sec",
+      phase_setup: "Setup Phase",
+      turn_blue: "Blue's Turn",
+      turn_red: "Red's Turn",
+      info_setup: "Click any empty cell to place a piece",
+      mode_label: "Mode",
+      mode_pvp: "Two players (same device)",
+      mode_ai: "Vs Computer (Red)",
+      mode_online: "Online",
+      name_label: "Your name",
+      role_label: "Role",
+      role_auto: "Auto",
+      role_blue: "Blue",
+      role_red: "Red",
+      connect: "Connect",
+      leave: "Leave",
+      not_connected: "Not connected",
+      blue_score: "Blue Score",
+      red_score: "Red Score",
+      legend_blue: "Blue Player",
+      legend_red: "Red Player",
+      legend_wall: "Wall",
+      hint: "Tip: After a 1-square step, you may return to the origin within the same turn (counts as two steps).",
+      how_title: "How to play? (Quick)",
+      how_list: [
+        "Setup: players alternate placing 4 pieces on any empty cells.",
+        "On your turn: move a piece 1 or 2 squares (straight or L-shape, or go-and-back) without crossing walls or landing on a piece.",
+        "After moving, place a wall adjacent to the destination cell (top/bottom/left/right).",
+        "Region: connected cells without crossing walls. You score the size of regions containing only your pieces.",
+        "You may skip only if all your pieces are isolated.",
+        "Game ends when walls are essentially filled / consecutive skips, or when “End” is pressed. Highest total score wins."
+      ],
+      log_title: "Move Log",
+      footer: "Tip: enable audio by clicking on the page once. You can mute from the browser settings.",
+      blue: "Blue", red: "Red",
+      top: "Top", bottom: "Bottom", left: "Left", right: "Right",
+      time_expired: "Time expired"
+    }
+  };
+  let LANG = 'ar';
+
+  function setLang(l) {
+    LANG = l;
+    const S = STR[l];
+    document.documentElement.lang = l === 'ar' ? 'ar' : 'en';
+    document.documentElement.dir = l === 'ar' ? 'rtl' : 'ltr';
+    document.getElementById('btnLang').textContent = l==='ar' ? 'EN' : 'ع';
+    document.getElementById('t_title').textContent = S.title;
+    document.getElementById('t_sub').textContent = S.sub;
+    document.getElementById('t_new').textContent = S.new;
+    document.getElementById('t_undo').textContent = S.undo;
+    document.getElementById('t_end').textContent = S.end;
+    document.getElementById('t_save').textContent = S.save;
+    document.getElementById('t_load').textContent = S.load;
+    document.getElementById('t_rtl').textContent = S.rtl;
+    document.getElementById('t_timer_label').textContent = S.timer_label;
+    document.getElementById('t_sec').textContent = S.sec;
+    document.getElementById('phaseBadge').textContent = S.phase_setup;
+    document.getElementById('turnBadge').textContent = S.turn_blue;
+    document.getElementById('info').textContent = S.info_setup;
+    document.getElementById('t_mode_label').textContent = S.mode_label;
+    document.getElementById('t_mode_pvp').textContent = S.mode_pvp;
+    document.getElementById('t_mode_ai').textContent = S.mode_ai;
+    document.getElementById('t_mode_online').textContent = S.mode_online;
+    document.getElementById('t_name_label').textContent = S.name_label;
+    document.getElementById('t_role_label').textContent = S.role_label;
+    document.getElementById('t_role_auto').textContent = S.role_auto;
+    document.getElementById('t_role_blue').textContent = S.role_blue;
+    document.getElementById('t_role_red').textContent = S.role_red;
+    document.getElementById('btnConnect').textContent = S.connect;
+    document.getElementById('btnLeave').textContent = S.leave;
+    document.getElementById('roomStatus').textContent = S.not_connected;
+    document.getElementById('t_blue_score').textContent = S.blue_score;
+    document.getElementById('t_red_score').textContent = S.red_score;
+    document.getElementById('t_legend_blue').textContent = S.legend_blue;
+    document.getElementById('t_legend_red').textContent = S.legend_red;
+    document.getElementById('t_legend_wall').textContent = S.legend_wall;
+    document.getElementById('t_hint').textContent = S.hint;
+    document.getElementById('t_how_title').textContent = S.how_title;
+    const ol = document.getElementById('how_list'); ol.innerHTML = '';
+    for (const li of S.how_list) { const el = document.createElement('li'); el.textContent = li; ol.appendChild(el); }
+    document.getElementById('t_log_title').textContent = S.log_title;
+    document.getElementById('t_footer').textContent = S.footer;
+    updateStatus(); // refresh dynamic badges text
+  }
+
+  /* ========= Game Core (same as earlier, condensed) ========= */
+  const SIZE = 7;
+  const PLAYERS = { BLUE:'blue', RED:'red' };
+  const TURN_SECONDS = 90;
+  const STORAGE_KEY = 'wallgo.save.v2';
+
+  let grid = [];  // [r][c] => {piece:null|'blue'|'red', walls:{t,b,l,r}}
+  let turn = PLAYERS.BLUE;
+  let phase = 'setup';
+  let placed = {blue:0, red:0};
+  let selected = null;
+  let movedThisTurn = null;
+  let history = [];
+  let skipStreak = 0;
+
+  const boardEl = document.getElementById('board');
+  const infoEl = document.getElementById('info');
+  const phaseBadge = document.getElementById('phaseBadge');
+  const turnBadge  = document.getElementById('turnBadge');
+  const blueScoreEl = document.getElementById('blueScore');
+  const redScoreEl  = document.getElementById('redScore');
+  const timerEl = document.getElementById('timer');
+  const logEl = document.getElementById('log');
+  const sndMove = document.getElementById('sndMove');
+  const sndWall = document.getElementById('sndWall');
+  const sndWin  = document.getElementById('sndWin');
+  let timerId = null;
+  let timeLeft = TURN_SECONDS;
+  let mode = 'pvp'; // pvp | ai | online
+  let ws = null; let onlineRole = 'blue';
+  const roomStatus = document.getElementById('roomStatus');
+
+  function makeGrid(){ grid = Array.from({length:SIZE}, ()=>Array.from({length:SIZE}, ()=>({piece:null,walls:{t:false,b:false,l:false,r:false}}))); }
+  function cellId(r,c){ return `cell-${r}-${c}`; }
+  function drawBoard(){
+    boardEl.innerHTML='';
+    for(let r=0;r<SIZE;r++){
+      for(let c=0;c<SIZE;c++){
+        const cell = grid[r][c];
+        const el = document.createElement('div');
+        el.className = 'cell';
+        el.id = cellId(r,c);
+        if(cell.piece) el.classList.add(cell.piece);
+        if(cell.walls.t) el.classList.add('wall-top');
+        if(cell.walls.b) el.classList.add('wall-bottom');
+        if(cell.walls.l) el.classList.add('wall-left');
+        if(cell.walls.r) el.classList.add('wall-right');
+        const dot = document.createElement('div'); dot.className='dot'; el.appendChild(dot);
+        el.addEventListener('click', ()=>onCellClick({r,c}));
+        boardEl.appendChild(el);
+      }
+    }
+    updateScores(); updateStatus(); paintHints();
+  }
+  function updateStatus(){
+    const S = STR[LANG];
+    phaseBadge.textContent = (phase==='setup')? S.phase_setup : (LANG==='ar' ? 'أدوار اللعب' : 'Playing');
+    turnBadge.textContent = (turn===PLAYERS.BLUE)? S.turn_blue : S.turn_red;
+    turnBadge.className = 'badge ' + (turn===PLAYERS.BLUE ? 'blue':'red');
+    if(phase==='setup'){ infoEl.textContent = S.info_setup; }
+    else { infoEl.textContent = movedThisTurn ? (LANG==='ar' ? 'ضع جدارًا ملاصقًا لمربع النهاية (أو تراجع).' : 'Place an adjacent wall (or Undo).') : (turn===PLAYERS.BLUE? S.turn_blue : S.turn_red) + (LANG==='ar'?' — اختر قطعة ثم حرّك 1–2 مربعات.':' — choose a piece then move 1–2 squares.'); }
+  }
+  function inBounds(r,c){ return r>=0 && r<SIZE && c>=0 && c<SIZE; }
+  function hasWallBetweenPos(a,b){
+    if(a.r===b.r){
+      if(a.c+1===b.c) return grid[a.r][a.c].walls.r || grid[b.r][b.c].walls.l;
+      if(a.c-1===b.c) return grid[a.r][a.c].walls.l || grid[b.r][b.c].walls.r;
+    }
+    if(a.c===b.c){
+      if(a.r+1===b.r) return grid[a.r][a.c].walls.b || grid[b.r][b.c].walls.t;
+      if(a.r-1===b.r) return grid[a.r][a.c].walls.t || grid[b.r][b.c].walls.b;
+    }
+    return true;
+  }
+  function placeWallAt(pos, side){
+    const cell = grid[pos.r][pos.c];
+    if(cell.walls[side]) return false;
+    const dr = {t:-1,b:1,l:0,r:0}[side];
+    const dc = {t:0,b:0,l:-1,r:1}[side];
+    const nr = pos.r + dr, nc = pos.c + dc;
+    const opp = {t:'b',b:'t',l:'r',r:'l'}[side];
+    cell.walls[side] = true;
+    if(inBounds(nr,nc)) grid[nr][nc].walls[opp] = true;
+    try{ sndWall.currentTime=0; sndWall.play().catch(()=>{});}catch{}
+    return true;
+  }
+  function wallSidesAvailableAt(pos){
+    const sides = [];
+    const cell = grid[pos.r][pos.c];
+    if(!cell.walls.t && pos.r>0) sides.push('t');
+    if(!cell.walls.b && pos.r<SIZE-1) sides.push('b');
+    if(!cell.walls.l && pos.c>0) sides.push('l');
+    if(!cell.walls.r && pos.c<SIZE-1) sides.push('r');
+    return sides;
+  }
+  function legalMovesFrom(pos){
+    const here = {r:pos.r,c:pos.c};
+    const out = [];
+    const d1 = [[1,0],[-1,0],[0,1],[0,-1]];
+    for(const [dr,dc] of d1){
+      const n1 = {r:here.r+dr, c:here.c+dc};
+      if(!inBounds(n1.r,n1.c) || hasWallBetweenPos(here,n1) || grid[n1.r][n1.c].piece) continue;
+      out.push({...n1, kind:'step1'});
+      const n2 = {r:n1.r+dr, c:n1.c+dc};
+      if(inBounds(n2.r,n2.c) && !grid[n2.r][n2.c].piece && !hasWallBetweenPos(n1,n2)) out.push({...n2, kind:'straight2'});
+      for(const [dr2,dc2] of d1){
+        if(Math.abs(dr2)===Math.abs(dr)) continue;
+        const nL = {r:n1.r+dr2, c:n1.c+dc2};
+        if(inBounds(nL.r,nL.c) && !grid[nL.r][nL.c].piece && !hasWallBetweenPos(n1,nL)) out.push({...nL, kind:'L'});
+      }
+      if(!hasWallBetweenPos(n1, here) && !grid[n1.r][n1.c].piece) out.push({r:here.r, c:here.c, kind:'return'});
+    }
+    const uniq = new Map();
+    for(const o of out) uniq.set(`${o.r},${o.c}`, o);
+    uniq.delete(`${pos.r},${pos.c}`);
+    return [...uniq.values()];
+  }
+  function locatePieces(player){
+    const pts=[];
+    for(let r=0;r<SIZE;r++) for(let c=0;c<SIZE;c++){ if(grid[r][c].piece===player) pts.push({r,c}); }
+    return pts;
+  }
+  function movePiece(from, to){
+    grid[to.r][to.c].piece = grid[from.r][from.c].piece;
+    grid[from.r][from.c].piece = null;
+    try{ sndMove.currentTime=0; sndMove.play().catch(()=>{});}catch{}
+  }
+  function paintHints(){
+    document.querySelectorAll('.cell .hint').forEach(h=>h.remove());
+    document.querySelectorAll('.cell').forEach(el=>el.classList.remove('illegal'));
+    if(!selected) return;
+    const legal = legalMovesFrom(selected).map(m=>`${m.r},${m.c}`);
+    for(let r=0;r<SIZE;r++) for(let c=0;c<SIZE;c++){
+      const el = document.getElementById(cellId(r,c));
+      const k = `${r},${c}`;
+      if(legal.includes(k)){
+        const hint = document.createElement('div'); hint.className='hint'; hint.title='OK';
+        el.appendChild(hint);
+      }else{
+        el.classList.add('illegal');
+      }
+    }
+    const selEl = document.getElementById(cellId(selected.r,selected.c));
+    if(selEl){ selEl.classList.remove('illegal'); selEl.classList.add('sel'); }
+  }
+  function floodFrom(r,c){
+    const seen = new Set([`${r},${c}`]); const q=[{r,c}];
+    while(q.length){
+      const p=q.shift();
+      const nbrs = [[1,0],[-1,0],[0,1],[0,-1]]
+        .map(([dr,dc])=>({r:p.r+dr,c:p.c+dc}))
+        .filter(n=>inBounds(n.r,n.c) && !hasWallBetweenPos(p,n));
+      for(const n of nbrs){ const k=`${n.r},${n.c}`; if(!seen.has(k)){ seen.add(k); q.push(n); } }
+    }
+    return [...seen].map(s=>({r:+s.split(',')[0], c:+s.split(',')[1]}));
+  }
+  function computeScores(){
+    const seen=new Set(); let blue=0, red=0;
+    for(let r=0;r<SIZE;r++) for(let c=0;c<SIZE;c++){
+      const k=`${r},${c}`; if(seen.has(k)) continue;
+      const region = floodFrom(r,c); region.forEach(x=>seen.add(`${x.r},${x.c}`));
+      const hasB = region.some(x=>grid[x.r][x.c].piece==='blue');
+      const hasR = region.some(x=>grid[x.r][x.c].piece==='red');
+      if(hasB && !hasR) blue += region.length;
+      if(hasR && !hasB) red  += region.length;
+    }
+    return {blue,red};
+  }
+  function updateScores(){ const s = computeScores(); blueScoreEl.textContent=s.blue; redScoreEl.textContent=s.red; }
+  function pushHistory(){
+    history.push({grid:grid.map(row=>row.map(c=>({piece:c.piece,walls:{...c.walls}}))),turn,phase,placed:{...placed},selected:selected?{...selected}:null,moved:movedThisTurn?{from:{...movedThisTurn.from},to:{...movedThisTurn.to}}:null,skipStreak});
+    if(history.length>400) history.shift();
+  }
+  function undo(){
+    const s = history.pop(); if(!s) return;
+    for(let r=0;r<SIZE;r++) for(let c=0;c<SIZE;c++){ grid[r][c].piece=s.grid[r][c].piece; grid[r][c].walls={...s.grid[r][c].walls}; }
+    turn=s.turn; phase=s.phase; placed=s.placed; selected=s.selected; movedThisTurn=s.moved; skipStreak=s.skipStreak;
+    drawBoard(); resetTimer(); logSys('↩︎ Undo.');
+  }
+  function saveState(manual=false){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({grid,turn,phase,placed,movedThisTurn,skipStreak,mode,LANG}));
+    if(manual) toast(LANG==='ar'?'تم الحفظ محليًا.':'Saved locally.');
+  }
+  function loadState(){
+    const raw = localStorage.getItem(STORAGE_KEY); if(!raw){ toast(LANG==='ar'?'لا يوجد حفظ سابق.':'No saved state.'); return; }
+    try{
+      const s = JSON.parse(raw);
+      for(let r=0;r<SIZE;r++) for(let c=0;c<SIZE;c++){ grid[r][c].piece=s.grid[r][c].piece; grid[r][c].walls={...s.grid[r][c].walls}; }
+      turn=s.turn; phase=s.phase; placed=s.placed; movedThisTurn=s.movedThisTurn; skipStreak=s.skipStreak;
+      mode = s.mode || 'pvp'; document.getElementById('mode').value = mode;
+      setLang(s.LANG || 'ar');
+      document.getElementById('onlineFields').style.display = (mode==='online' ? 'flex' : 'none');
+      drawBoard(); resetTimer(); toast(LANG==='ar'?'تم التحميل.':'Loaded.');
+      logSys('⤵︎ Load.');
+    }catch{ toast(LANG==='ar'?'تعذر تحميل الحفظ.':'Failed to load.'); }
+  }
+  function toast(msg){ infoEl.textContent = msg; setTimeout(()=>updateStatus(), 1200); }
+  function resetTimer(){
+    clearInterval(timerId); timeLeft = TURN_SECONDS; timerEl.textContent = timeLeft;
+    timerId = setInterval(()=>{ timeLeft--; timerEl.textContent=timeLeft; if(timeLeft<=0){ clearInterval(timerId); handleTimeExpiry(); } },1000);
+  }
+  function handleTimeExpiry(){
+    const S = STR[LANG];
+    if(phase==='setup'){
+      const empty = allCells().filter(p=>!grid[p.r][p.c].piece);
+      if(empty.length){
+        const pos = empty[Math.floor(Math.random()*empty.length)]; placePieceAt(pos, turn);
+        logMove(`${turn==='blue'?'🟦':'🟥'} ${turn==='blue'?S.blue:S.red} ${S.time_expired} — (${pos.r+1},${pos.c+1})`);
+        switchTurnIfSetupDone();
+      }
+      drawBoard(); resetTimer(); autoPlayIfAI(); syncOnline(); return;
+    }
+    if(movedThisTurn){
+      const end = movedThisTurn.to; const sides = wallSidesAvailableAt(end);
+      if(sides.length){
+        const side = sides[Math.floor(Math.random()*sides.length)]; placeWallAt(end, side);
+        logMove(`${turn==='blue'?'🟦':'🟥'} ${turn==='blue'?S.blue:S.red} ${S.time_expired} — ${dirLabel(side)} @ (${end.r+1},${end.c+1})`);
+        finalizeTurn();
+      }else{
+        if(randomWallForPlayer(turn)){ logMove(`${turn==='blue'?'🟦':'🟥'} ${turn==='blue'?S.blue:S.red} ${S.time_expired} — random wall`); finalizeTurn(); }
+        else { logMove(`${turn==='blue'?'🟦':'🟥'} ${turn==='blue'?S.blue:S.red} ${S.time_expired} — skip`); skipTurn(); }
+      }
+    }else{
+      if(randomMoveAndWallForPlayer(turn)){ logMove(`${turn==='blue'?'🟦':'🟥'} ${turn==='blue'?S.blue:S.red} ${S.time_expired} — move+wall`); finalizeTurn(); }
+      else { logMove(`${turn==='blue'?'🟦':'🟥'} ${turn==='blue'?S.blue:S.red} ${S.time_expired} — skip`); skipTurn(); }
+    }
+  }
+  function allCells(){ const a=[]; for(let r=0;r<SIZE;r++) for(let c=0;c<SIZE;c++) a.push({r,c}); return a; }
+  function onCellClick(pos){
+    try{ sndMove.play().then(()=>{sndMove.pause();sndMove.currentTime=0;}).catch(()=>{});}catch{}
+    if(mode==='online' && onlineRole!==turn) return;
+    const S = STR[LANG];
+    if(phase==='setup'){
+      if(grid[pos.r][pos.c].piece || placed[turn]>=4) return;
+      pushHistory(); placePieceAt(pos, turn);
+      logMove(`${turn==='blue'?'🟦':'🟥'} ${turn==='blue'?S.blue:S.red} @ (${pos.r+1},${pos.c+1})`);
+      switchTurnIfSetupDone();
+      drawBoard(); resetTimer(); autoPlayIfAI(); syncOnline(); return;
+    }
+    if(movedThisTurn){
+      if(pos.r===movedThisTurn.to.r && pos.c===movedThisTurn.to.c){ openWallPicker(pos); }
+      return;
+    }
+    if(!selected){
+      if(grid[pos.r][pos.c].piece===turn){ selected = {...pos}; paintHints(); }
+      return;
+    }else{
+      const options = legalMovesFrom(selected);
+      if(options.some(o=>o.r===pos.r && o.c===pos.c)){
+        pushHistory(); movePiece(selected, pos);
+        logMove(`${turn==='blue'?'🟦':'🟥'} ${turn==='blue'?S.blue:S.red} ${LANG==='ar'?'حرّك إلى':'moved to'} (${pos.r+1},${pos.c+1})`);
+        movedThisTurn = {from:{...selected}, to:{...pos}}; selected = null; drawBoard();
+        infoEl.textContent = LANG==='ar'?'اختر موضع الجدار بالنقر على المربع النهائي.':'Click the destination cell to place a wall.';
+        flashCell(pos); syncOnline();
+      }else{
+        if(grid[pos.r][pos.c].piece===turn){ selected={...pos}; paintHints(); }
+        else { selected=null; drawBoard(); }
+      }
+    }
+  }
+  function placePieceAt(pos, player){ grid[pos.r][pos.c].piece = player; placed[player]++; }
+  function switchTurnIfSetupDone(){ turn = (turn===PLAYERS.BLUE)? PLAYERS.RED : PLAYERS.BLUE; if(placed.blue===4 && placed.red===4){ phase='play'; } }
+  function openWallPicker(cellPos){
+    document.querySelectorAll('.wall-picker').forEach(p=>p.remove());
+    const el = document.getElementById(cellId(cellPos.r,cellPos.c));
+    const picker = document.createElement('div');
+    picker.className='wall-picker';
+    Object.assign(picker.style,{position:'absolute',inset:'4px',border:'1px solid var(--focus)',borderRadius:'8px',display:'grid',gridTemplateColumns:'1fr 1fr',gap:'4px',padding:'4px',background:'#0b1020',zIndex:5});
+    const S = STR[LANG];
+    [[''+S.top,'t'],[''+S.bottom,'b'],[''+S.left,'l'],[''+S.right,'r']].forEach(([label,side])=>{
+      const btn = document.createElement('button'); btn.textContent = label; btn.type='button'; btn.className='secondary';
+      btn.onclick = ()=>{ if(placeWallAt(cellPos, side)){ document.querySelectorAll('.wall-picker').forEach(p=>p.remove()); logMove(`${turn==='blue'?'🟦':'🟥'} ${turn==='blue'?S.blue:S.red} ${LANG==='ar'?'جدار':''} ${label} @ (${cellPos.r+1},${cellPos.c+1})`); finalizeTurn(); syncOnline(); } };
+      picker.appendChild(btn);
+    });
+    const skipBtn = document.createElement('button'); skipBtn.textContent=(LANG==='ar'?'تخطي الدور':'Skip'); skipBtn.type='button'; skipBtn.className='warn'; skipBtn.style.gridColumn='span 2';
+    skipBtn.onclick=()=>{ if(allPiecesIsolated(turn)){ document.querySelectorAll('.wall-picker').forEach(p=>p.remove()); skipTurn(); syncOnline(); } else { alert(LANG==='ar'?'لا يمكنك التخطي إلا إذا كانت جميع قطعك معزولة.':'You may skip only if all your pieces are isolated.'); } };
+    picker.appendChild(skipBtn); el.appendChild(picker);
+  }
+  function flashCell(pos){ const el = document.getElementById(cellId(pos.r,pos.c)); if(!el) return; el.animate([{transform:'scale(1.0)'},{transform:'scale(1.04)'},{transform:'scale(1.0)'}],{duration:300}); }
+  function clearHints(){ document.querySelectorAll('.cell .hint').forEach(h=>h.remove()); }
+  function dirLabel(s){ const S=STR[LANG]; return {t:S.top,b:S.bottom,l:S.left,r:S.right}[s]; }
+  function allPiecesIsolated(player){
+    const pieces = locatePieces(player); if(pieces.length===0) return false;
+    return pieces.every(p=>{
+      const region = floodFrom(p.r,p.c);
+      const hasB = region.some(x=>grid[x.r][x.c].piece==='blue');
+      const hasR = region.some(x=>grid[x.r][x.c].piece==='red');
+      return (player==='blue') ? (hasB && !hasR) : (hasR && !hasB);
+    });
+  }
+  function randomWallForPlayer(player){
+    const pieces = locatePieces(player);
+    const candidates = [];
+    for(const p of pieces) for(const s of wallSidesAvailableAt(p)) candidates.push({pos:p, side:s});
+    if(!candidates.length) return false;
+    const pick = candidates[Math.floor(Math.random()*candidates.length)];
+    return placeWallAt(pick.pos, pick.side);
+  }
+  function randomMoveAndWallForPlayer(player){
+    const pieces = locatePieces(player);
+    const moves = [];
+    for(const p of pieces){ const opts = legalMovesFrom(p); for(const o of opts) moves.push({from:p, to:o}); }
+    if(!moves.length) return false;
+    const m = moves[Math.floor(Math.random()*moves.length)];
+    movePiece(m.from, m.to);
+    const sides = wallSidesAvailableAt(m.to);
+    if(sides.length){ const side = sides[Math.floor(Math.random()*sides.length)]; placeWallAt(m.to, side); return true; }
+    else { if(!randomWallForPlayer(player)){ movePiece(m.to, m.from); return false; } return true; }
+  }
+  function finalizeTurn(){
+    movedThisTurn = null; selected=null; clearHints();
+    updateScores(); saveState(false);
+    if(noWallsRemain() || skipStreak>=2){ finalizeGame(); return; }
+    turn = (turn===PLAYERS.BLUE)? PLAYERS.RED : PLAYERS.BLUE;
+    drawBoard(); resetTimer(); autoPlayIfAI();
+  }
+  function skipTurn(){
+    skipStreak++; movedThisTurn=null; selected=null; clearHints();
+    if(noWallsRemain() || skipStreak>=2){ finalizeGame(); return; }
+    turn = (turn===PLAYERS.BLUE)? PLAYERS.RED : PLAYERS.BLUE;
+    drawBoard(); resetTimer(); autoPlayIfAI(); saveState(false);
+  }
+  function noWallsRemain(){
+    for(let r=0;r<SIZE;r++) for(let c=0;c<SIZE;c++){ const cell = grid[r][c]; if(!(cell.walls.t && cell.walls.b && cell.walls.l && cell.walls.r)) return false; }
+    return true;
+  }
+  function finalizeGame(){
+    updateScores();
+    const s = computeScores();
+    const msg = (s.blue===s.red) ? (LANG==='ar'?'تعادل!':'Draw!') : (s.blue>s.red ? (LANG==='ar'?'فاز الأزرق!':'Blue wins!') : (LANG==='ar'?'فاز الأحمر!':'Red wins!'));
+    alert(`${msg}\n\n${LANG==='ar'?'النتيجة — الأزرق':'Score — Blue'}: ${s.blue} • ${LANG==='ar'?'الأحمر':'Red'}: ${s.red}`);
+    try{ sndWin.currentTime=0; sndWin.play().catch(()=>{});}catch{}
+    clearInterval(timerId);
+    logSys(`🏁 ${LANG==='ar'?'نهاية اللعبة':'Game Over'} — ${LANG==='ar'?'الأزرق':'Blue'}: ${s.blue} • ${LANG==='ar'?'الأحمر':'Red'}: ${s.red}`);
+  }
+  function aiTakeTurn(){
+    if(turn!=='red') return;
+    const current = computeScores();
+    let best = null, bestDelta = -Infinity;
+    const redPieces = locatePieces('red');
+    for(const p of redPieces){
+      const opts = legalMovesFrom(p);
+      for(const to of opts){
+        movePiece(p, to);
+        const sides = wallSidesAvailableAt(to);
+        if(!sides.length){
+          const otherWalls = locatePieces('red').flatMap(pp=>wallSidesAvailableAt(pp).map(s=>({pos:pp, side:s})));
+          if(otherWalls.length===0){ movePiece(to, p); continue; }
+          for(const cand of otherWalls){
+            placeWallAt(cand.pos, cand.side);
+            const sc = computeScores();
+            const delta = (sc.red - sc.blue) - (current.red - current.blue);
+            if(delta > bestDelta) best = {move:{from:p,to}, wall:{pos:cand.pos, side:cand.side}}, bestDelta=delta;
+            undoLastWall(cand.pos, cand.side);
+          }
+          movePiece(to, p);
+        }else{
+          for(const side of sides){
+            placeWallAt(to, side);
+            const sc = computeScores();
+            const delta = (sc.red - sc.blue) - (current.red - current.blue);
+            if(delta > bestDelta) best = {move:{from:p,to}, wall:{pos:to, side}}, bestDelta=delta;
+            undoLastWall(to, side);
+          }
+          movePiece(to, p);
+        }
+      }
+    }
+    if(!best){
+      if(!randomMoveAndWallForPlayer('red')){ skipTurn(); return; }
+      finalizeTurn(); return;
+    }
+    pushHistory();
+    movePiece(best.move.from, best.move.to);
+    logMove(`🟥 ${STR[LANG].red} ${(LANG==='ar'?'حرّك إلى':'moved to')} (${best.move.to.r+1},${best.move.to.c+1})`);
+    placeWallAt(best.wall.pos, best.wall.side);
+    logMove(`🟥 ${STR[LANG].red} ${(LANG==='ar'?'جدار':'wall')} ${dirLabel(best.wall.side)} @ (${best.wall.pos.r+1},${best.wall.pos.c+1})`);
+    finalizeTurn();
+  }
+  function undoLastWall(pos, side){
+    const opp = {t:'b',b:'t',l:'r',r:'l'}[side];
+    const cell = grid[pos.r][pos.c];
+    cell.walls[side] = false;
+    const dr = {t:-1,b:1,l:0,r:0}[side];
+    const dc = {t:0,b:0,l:-1,r:1}[side];
+    const nr = pos.r+dr, nc=pos.c+dc;
+    if(inBounds(nr,nc)) grid[nr][nc].walls[opp] = false;
+  }
+  function autoPlayIfAI(){ if(mode!=='ai') return; if(turn==='red'){ setTimeout(()=>aiTakeTurn(), 350); } }
+  function syncOnline(){ if(mode!=='online' || !ws || ws.readyState!==1) return; ws.send(JSON.stringify({ type:'state', state:{grid, turn, phase, placed, movedThisTurn, skipStreak} })); }
+  function applyRemoteState(s){
+    for(let r=0;r<SIZE;r++) for(let c=0;c<SIZE;c++){ grid[r][c].piece = s.grid[r][c].piece; grid[r][c].walls = {...s.grid[r][c].walls}; }
+    turn=s.turn; phase=s.phase; placed=s.placed; movedThisTurn=s.movedThisTurn; skipStreak=s.skipStreak;
+    drawBoard(); resetTimer(); logSys('↔︎ Sync from peer.');
+  }
+  function connectOnline(){
+    const url = document.getElementById('wsUrl').value.trim();
+    const room = document.getElementById('roomId').value.trim();
+    const roleReq = document.getElementById('roomRole').value;
+    const name = (document.getElementById('playerName').value || 'Player').slice(0,20);
+    if(!url || !room){ alert(LANG==='ar'?'أدخل خادم WebSocket و Room ID.':'Enter WebSocket server & Room ID.'); return; }
+    try{
+      ws?.close();
+      ws = new WebSocket(url);
+      ws.onopen = ()=>{
+        ws.send(JSON.stringify({type:'join', room, role: roleReq}));
+        roomStatus.textContent = (LANG==='ar'?'متصل':'Connected');
+        document.getElementById('btnConnect').disabled = true;
+        document.getElementById('btnLeave').disabled = false;
+        logSys(`🔌 ${LANG==='ar'?'اتصال بالخادم — غرفة':'Connected — room'} ${room} — ${name}`);
+      };
+      ws.onmessage = (ev)=>{
+        try{
+          const msg = JSON.parse(ev.data);
+          if(msg.type==='role'){ onlineRole = msg.role; logSys(`🎭 ${(LANG==='ar'?'دورك: ':'Your role: ')}${onlineRole==='blue'?(STR[LANG].blue):(STR[LANG].red)}`); }
+          else if(msg.type==='state'){ applyRemoteState(msg.state); }
+          else if(msg.type==='system'){ logSys(`📢 ${msg.text}`); }
+        }catch{}
+      };
+      ws.onclose = ()=>{
+        roomStatus.textContent = STR[LANG].not_connected;
+        document.getElementById('btnConnect').disabled = false;
+        document.getElementById('btnLeave').disabled = true;
+        logSys('🔌 Disconnected.');
+      };
+    }catch{ alert(LANG==='ar'?'تعذر الاتصال بالخادم.':'Failed to connect.'); }
+  }
+  function leaveOnline(){ try{ ws?.close(); }catch{} }
+  function logMove(text){ const el = document.createElement('div'); el.className='it'; el.textContent = text; logEl.appendChild(el); logEl.scrollTop = logEl.scrollHeight; }
+  function logSys(text){ const el = document.createElement('div'); el.className='sys'; el.textContent = text; logEl.appendChild(el); logEl.scrollTop = logEl.scrollHeight; }
+
+  // UI Buttons
+  document.getElementById('btnNew').onclick = ()=>{ pushHistory(); init(true); logSys('♻︎ New game.'); syncOnline(); };
+  document.getElementById('btnUndo').onclick = ()=>{ undo(); syncOnline(); };
+  document.getElementById('btnEnd').onclick  = ()=>finalizeGame();
+  document.getElementById('btnSave').onclick = ()=>saveState(true);
+  document.getElementById('btnLoad').onclick = ()=>loadState();
+  document.getElementById('btnClearLog').onclick = ()=>{ logEl.innerHTML=''; };
+  document.getElementById('rtlToggle').onchange = (e)=>{ document.documentElement.dir = e.target.checked ? 'rtl' : 'ltr'; };
+  document.getElementById('mode').onchange = (e)=>{ mode = e.target.value; document.getElementById('onlineFields').style.display = (mode==='online' ? 'flex' : 'none'); init(false); };
+  document.getElementById('btnConnect').onclick = ()=>connectOnline();
+  document.getElementById('btnLeave').onclick = ()=>leaveOnline();
+  document.getElementById('btnLang').onclick = ()=>{ setLang(LANG==='ar'?'en':'ar'); };
+
+  function init(fresh=false){
+    makeGrid(); turn = PLAYERS.BLUE; phase='setup'; placed={blue:0, red:0}; selected=null; movedThisTurn=null; skipStreak=0;
+    if(fresh){ history=[]; logEl.innerHTML=''; }
+    drawBoard(); resetTimer();
+    if(mode==='ai') autoPlayIfAI();
+  }
+
+  // Initial language
+  setLang('ar');
+  init(true);
+})();
+</script>
+</body>
+</html>
